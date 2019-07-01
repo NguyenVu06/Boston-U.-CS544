@@ -1,0 +1,450 @@
+---
+title: "CS544Final_Vu"
+author: "Nguyen Vu"
+date: "6/22/2019"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r load, include=FALSE}
+library(statsr)
+library(dplyr)
+library(stringr)
+library(prob)
+library(ggplot2)
+library(sampling)
+library(readr)
+library(forcats)
+```
+
+
+#Load data
+###Data: Measles cases reported in the United States over the years between 1917 to 2002  
+###Data is provided by The University of Pittsburg Tycho Project. 
+
+```{r Data import and clean up}
+Tycho_Measle_US <- read.csv("/cloud/project/CS544_final_proj/CS544Final_proj_Vu/Tycho_Measle_US.csv")
+
+#Tycho_Measle_US <- read.csv("~/Desktop/Boston Univeristy/CS544/CS544Final_proj_Vu/Tycho_Measle_US.csv")
+
+
+#Extract Variables of interest into a separate subset and convert into a tibble
+
+Tycho_Measle_US <- as_tibble(Tycho_Measle_US) 
+measle_US_tib <- Tycho_Measle_US %>% select(c(5, 8, 10:14, 17, 20))
+#rename columns to be more intuitive
+measle_US_tib <-measle_US_tib %>% select(everything()) %>% rename(State=Admin1Name, County=Admin2Name )
+
+# convert all NA to explicit 
+measle_US_tib$County <- fct_explicit_na(measle_US_tib$County)
+measle_US_tib$CityName <- fct_explicit_na(measle_US_tib$CityName)
+measle_US_tib$PlaceOfAcquisition <- fct_explicit_na(measle_US_tib$PlaceOfAcquisition)
+#delete Duplicate Rows
+measle_US_tib <- distinct(measle_US_tib)
+
+```
+
+
+###Problems of this large data set
+This data set poses many problems for analysis due to the cumulative time interval series, for example:  
+
+	* time interval 1: May 28-Jun 15: 22 cases
+	* time interval 2: Jun 1-Jun 7: 10 cases
+	* time interval 3: Jun 1-Jun 14: 15 cases
+	* time interval 4: Jun 1-Jun 21: 17 cases
+	  
+	  
+	
+This is difficult to even slit up the time and get the differences between 2 rows in a time series. looking at the example above, even if we were
+to get diff(cases) for interval that starts on Jun 1 and ends on Jun 21, we would still have to parse thru the overlapping data that starts on 
+December 28.  
+
+###Possible Solution
+
+The goal of data analysis for me over this large set of data is to get some statistic inference for the measles cases reported in the US over the last 100 years. Over such a large amount of time and a large set of data, I've decided to conver the reported cases in each period of time to the rate reported. This will normalize the data no matter the time interval lengths or if multiple time interval over lap. The reported cases rate will be reported in counts per day. This will let us know on average, how many measles cases are reported per day. The mean of these averages will be calculated for each year and multiply by days per year in order to estimate how many cases were reported in that particular year.  
+
+The markers for month and year will be extracted from the "PeriodEndDate" as this signify when the sample is finally reported and collection stopped.  
+For cases when data overlap beween 2 years, the calculated rate per day will be assigned to the year that the period of collection ended.  
+
+###Constant Added for analysis
+  
+* Year of Measles Vaccine Discovery: **1963**
+
+#Data Cleaning and Structuring
+
+```{r Build Functions}
+#build a function to parse our decades get decates number
+decades <- function(year){
+  if(!is.numeric(year)){
+    yearnum <- as.numeric(year)
+    return(floor(yearnum/10)*10)
+  }else{return(floor(year/10)*10)}
+}
+
+#Write Boolean function to account for leap year
+is.leapyear=function(year){
+  return(((year %% 4 == 0) & (year %% 100 != 0)) | (year %% 400 == 0))
+}
+```
+
+
+```{r Data Wrangling and organization}
+#add constant
+measleVacY <- 1963
+
+
+#there are data collected over the same period of time with slightly different counts. These counts should be added together. 
+measle_US_data <- measle_US_tib%>% group_by(Fatalities, State, County, CityName, PeriodStartDate, PeriodEndDate, PartOfCumulativeCountSeries, PlaceOfAcquisition ) %>% summarise(counts = sum(CountValue))
+
+#For the sake of simplicity, the years will be keep track of by the time where collection has ended, the date when Data was acquired
+
+measle_US_data$yearEnd <- format(as.Date(measle_US_data$PeriodEndDate), "%Y")
+measle_US_data$moEnd <- format(as.Date(measle_US_data$PeriodEndDate), "%m")              
+#measle_US_data$dayEnd <- format(as.Date(measle_US_data$PeriodEndDate), "%d")
+
+#Create a column for decade in which data was reported
+measle_US_data <- measle_US_data %>% mutate(Decade = decades(yearEnd))
+```
+
+
+```{r Convert to Rates of count per day}
+# Add columns to correct for those values where data are part of a time series
+
+#Get the length of time for each period in days
+measle_US_data$PeriodLength <- as.numeric(difftime(measle_US_data$PeriodEndDate, measle_US_data$PeriodStartDate, units="days"))
+
+#Get rate of meales reported per day
+measle_US_data <-measle_US_data %>% mutate(countPerDay = counts/PeriodLength)
+
+#Get rate of meales fatalities reported per day
+measle_US_data <-measle_US_data %>% mutate(deathPerDay = Fatalities/PeriodLength)
+
+
+#Check for LeapYear and fill out a column for number of days in a year
+measle_US_data <- measle_US_data %>% mutate(daysPerYear = if_else(is.leapyear(as.numeric(yearEnd)), 366, 365))
+
+#Calculated Projected Cases per year using the rate
+measle_US_data <-measle_US_data %>% mutate(ProjectedCountsPerYear = countPerDay*daysPerYear)
+
+#Calculated Projected Death Cases per year using the rate
+measle_US_data <-measle_US_data %>% mutate(ProjectedDeathsPerYear = deathPerDay*daysPerYear)
+
+# Add column for before and after vaccine
+measle_US_data$VacDiscovered <- ifelse(as.numeric(measle_US_data$yearEnd)> measleVacY, 1, 0)
+
+
+```
+
+#Data Analysis
+
+
+####Fatalites and cases of the population
+  * Get Total Death
+	* Get total Measles cases reported by Year and Decade - graph by Decade
+	* % Death by total measles per decade
+	* % Death before/after vaccine 
+
+
+```{r }
+#summary counts and death by year
+by_Year <- measle_US_data %>% group_by(Decade, yearEnd, VacDiscovered) %>% summarise(avgpYear = mean(ProjectedCountsPerYear),
+                                                              avgDeath = mean(ProjectedDeathsPerYear),
+                                                              sdpYear = sd(ProjectedCountsPerYear),
+                                                              sdDeath = sd(ProjectedDeathsPerYear),
+                                                              numOfObservations = n())
+
+#Calculated the number of people that died from measles per year
+by_Year <- by_Year %>% mutate(pctDied = (avgDeath/sdpYear)*100)
+
+#Total Death By measles for the whole population of Data
+totalDeath_pop <- sum(by_Year$avgDeath)
+totalDeath_pop
+
+#Total Cases reported by measles for the population of Data
+totalCases_pop <- sum(by_Year$avgpYear)
+totalCases_pop
+#Percent of Fatalities for the entire population on reported cases
+percentDeathofPop = totalDeath_pop/totalCases_pop*100
+percentDeathofPop
+
+#Total of Cases reported by decades
+by_Decade <- by_Year %>% group_by(Decade) %>% summarise(TotalCases = round(sum(avgpYear)),
+                                                        TotalDeath = round(sum(avgDeath)))
+#Plot number of cases by decades
+Case_by_decade_plot <- ggplot(data = by_Decade, mapping = aes(x = as.character(Decade) ,y = TotalCases)) + geom_col() + scale_x_discrete() + labs(title = "Measles Cases By Decade", x = "Decade", y = "Number of Cases")
+
+
+#Calculated the number of people that died from measles per decade
+by_Decade <- by_Decade %>% mutate(pctDied = (TotalDeath/TotalCases)*100)
+
+death_by_decade_plot <- ggplot(data = by_Decade, mapping = aes(x = as.character(Decade), y = pctDied)) + geom_col()+ labs(title = "%Death Cases By Decade", x = "Decade", y = "Percent Death of Total Cases Annually")
+
+
+
+#Get total number death before/after vaccince
+by_Vaccine <- by_Year %>% group_by(VacDiscovered) %>% summarise(TotalCases = round(sum(avgpYear)),
+                                                      TotalDeath = round(sum(avgDeath)),
+                                                     percent_Death = mean(pctDied))
+
+```
+
+
+```{r}
+#Decades by Decades cases of measles reported:  
+Case_by_decade_plot
+#In companion, the death number by decades is even more promising:  
+death_by_decade_plot
+
+```
+It looks like Measles peaked in the 1950s and decrease in the 1960s and have been decreasing since.  
+The fatalities as a percentage of the total counts of measles have been decreasing since the 1880s and looks to come close to zero post 1930s  
+
+
+####Analysis Over the year
+* Scatter plot of cases per year nationally
+*	Per year Cases reported before and post vaccine
+
+```{r trend analysis}
+
+by_Year$yearEnd <- as.numeric(by_Year$yearEnd)
+by_Year <- by_Year %>% mutate(VaccineStatus = ifelse(VacDiscovered !=0, "Post-Vax", "Pre-Vax"))
+
+#scatter plot of cases reported by year
+cases_by_year_plot <- ggplot(data = by_Year, aes(x = yearEnd, y = avgpYear, colour = VaccineStatus)) + geom_point() + labs(title = "Reported Cases of Measles Over the Year", x = "Year", y = "Number of Reported Cases") + geom_line()+theme(legend.position = "bottom")
+
+#year with the highest reported number
+highYear <- by_Year$yearEnd[which.max(by_Year$avgpYear)]
+#The data shows that the cases of measles reported increase drastically and peaked
+highYear
+```
+
+The data shows that the cases of measles reported increase drastically and peaked in `r highYear` and drop drastically after the popularization of the vaccine as shown 
+```{r} 
+cases_by_year_plot
+```
+
+
+###Distribution and Central Limit Theorem
+
+---
+```{r}
+#summary counts by state by year
+by_State_byYear <- measle_US_data %>% group_by(State, Decade, yearEnd, VacDiscovered) %>% summarise(avgCases = round(mean(ProjectedCountsPerYear)),
+                                                              avgDeath = round(mean(ProjectedDeathsPerYear)),
+                                                              numOfObservations = n())
+by_State_byYear <- by_State_byYear %>% mutate(VaccineStatus = ifelse(VacDiscovered !=0, "Post-Vax", "Pre-Vax"))
+
+#population Distribution of pre and post Vax
+cases_by_vax_distr <- ggplot(data = by_State_byYear, aes(x = avgCases)) + geom_histogram(binwidth = 1000, aes(fill = VaccineStatus)) + facet_wrap(~ VaccineStatus, nrow = 1) +
+  labs(title = "Reported Measles Pre/Post Vaccine", x = "Number of Reported Cases Per Year", y = "Frequency") 
+#Distribution of cases reported per year for Pre/post vaccine invention:  
+cases_by_vax_distr
+
+```
+
+
+
+Ignoring year, compare the population of pre and post Vaccine thru looking at the entire population of data and then random sampling.  
+
+Firts, we will look at the entire population.
+
+```{r Population Summary of Statistics}
+#Looking at the raw population summary of statistics
+by_State_byYear %>% group_by(VaccineStatus) %>% summarise(avgCasesPerYear = mean(avgCases),
+                                                                 avgDeathPerYear = mean(avgDeath),
+                                                          casesSD = sd(avgCases),
+                                                          deathSD = sd(avgDeath),
+                                                          NumOfObservations = n())
+by_State_byYear %>% group_by() %>% summarise(avgCasesPerYear = mean(avgCases),
+                                                                 avgDeathPerYear = mean(avgDeath),
+                                                          casesSD = sd(avgCases),
+                                                          deathSD = sd(avgDeath),
+                                                          NumOfObservations = n())
+
+
+```
+
+####Simple Random Sample of 100 rows without replacement
+---
+```{r}
+set.seed(122016)
+s <- srswor(100, nrow(by_State_byYear))
+rows <- (1:nrow(by_State_byYear))[s!=0]
+srswor_sample <- by_State_byYear[rows, ]
+#statistics of the 1 small sample
+srswor_sample %>% group_by(VaccineStatus) %>% summarise(avgCasesPerYear = mean(avgCases),
+                                                                 avgDeathPerYear = mean(avgDeath),
+                                                          casesSD = sd(avgCases),
+                                                          deathSD = sd(avgDeath),
+                                                          NumOfObservations = n())
+
+
+#extract the number of cases in the data sets
+srswor_sample_cases_postVax <- srswor_sample %>% dplyr::filter(VacDiscovered !=0 ) %>% select(avgCases)
+srswor_sample_cases_preVax <- srswor_sample %>% dplyr::filter(VacDiscovered ==0 ) %>% select(avgCases)
+
+srswor_sample_cases_postVax <- as.vector(srswor_sample_cases_postVax$avgCases)
+srswor_sample_cases_preVax <- as.vector(srswor_sample_cases_preVax$avgCases)
+```
+
+####10000 simulations of srswor samples to build a confidence interval n = 50
+```{r}
+
+set.seed(122016)
+#construct a 10000 simulations with the sample size of 50 from the sampling samples - pre vaccine
+xbar_preVax <- numeric(10000)
+for( i in 1:10000){
+  xbar_preVax[i] <- mean(sample(srswor_sample_cases_preVax, size = 50, replace = TRUE))
+}
+hist(xbar_preVax, probability = TRUE,main = "PreVax_srwor", xlab = "Cases Per Year")
+
+#construct a 10000 simulations with the sample size of 50 from the sampling samples - post vaccine
+xbar_postVax <- numeric(10000)
+for( i in 1:10000){
+  xbar_postVax[i] <- mean(sample(srswor_sample_cases_postVax, size = 50, replace = TRUE))
+}
+hist(xbar_postVax, probability = TRUE, main = "PostVax_srwor", xlab = "Cases Per Year")
+
+```
+
+
+####Strata Sampling by Decade sample size of 100
+---
+```{r}
+set.seed(122016)
+freq <- table(by_State_byYear$Decade)
+st_sizes <- round(100* freq/sum(freq))
+st_s <- strata(by_State_byYear, stratanames = c("Decade"),
+                    size = st_sizes, method = "srswor", description = FALSE)
+
+st_sample <- getdata(by_State_byYear, st_s)
+```
+
+####Quick Compare of the number of samples taken per decade in each sampling methods
+```{r}
+#The simple random data set has the following decades:  
+table(srswor_sample$Decade)
+#The Strata by Decade random data set has the following decades:  
+table(st_sample$Decade) 
+#THe entire population collections by decade summary:
+table(by_State_byYear$Decade)
+```
+In the Strata  samples, the sampling is more proportional to how many data point is in each decade in the population
+
+###10000 simulations of stratas samples to build a confidence interval n=50
+
+```{r}
+st_sample_cases_postVax <- st_sample %>% dplyr::filter(VacDiscovered !=0 ) %>% select(avgCases)
+st_sample_cases_preVax <- st_sample %>% dplyr::filter(VacDiscovered ==0 ) %>% select(avgCases)
+
+st_sample_cases_postVax <- as.vector(st_sample_cases_postVax$avgCases)
+st_sample_cases_preVax <- as.vector(st_sample_cases_preVax$avgCases)
+
+set.seed(122016)
+#construct a 10000 simulations with the sample size of 50 from the strata sampling samples - pre vaccine
+xbarSt_preVax <- numeric(10000)
+for( i in 1:10000){
+  xbarSt_preVax[i] <- mean(sample(st_sample_cases_preVax, size = 50, replace = TRUE))
+}
+hist(xbarSt_preVax, probability = TRUE,main = "PreVax Strata By Decade", xlab = "Cases Per Year")
+
+#construct a 10000 simulations with the sample size of 50 from the strata sampling samples - post vaccine
+xbarSt_postVax <- numeric(10000)
+for( i in 1:10000){
+  xbarSt_postVax[i] <- mean(sample(st_sample_cases_postVax, size = 50, replace = TRUE))
+}
+hist(xbarSt_postVax, probability = TRUE, main = "PostVax Strata By Decade", xlab = "Cases Per Year")
+
+```
+
+
+##### Compare the mean and SD for the simulation results of the 2 sampling method
+
+```{r}
+#10000 simulated simple random samples pre-vaccine invention has the mean =
+mean(xbar_preVax)
+#and standard deviation of SD = 
+sd(xbar_preVax)
+#10000 simulated simple samples post-vaccine invention has the mean =
+mean(xbar_postVax)
+#and standard deviation of SD = 
+sd(xbar_postVax)
+  
+#10000 simulated Strata_by_Decade random samples pre-vaccine invention has the mean = 
+mean(xbarSt_preVax)
+#standard deviation of SD = 
+sd(xbarSt_preVax)  
+#10000 simulated Strata_by_Decade samples post-vaccine invention has the mean =`
+mean(xbarSt_postVax)
+#and standard deviation of SD = `r 
+sd(xbarSt_postVax)
+```
+
+#####Population mean and SD  
+```{r}
+by_State_byYear %>% group_by(VaccineStatus) %>% summarise(avgCasesPerYear = mean(avgCases),
+                                                          casesSD = sd(avgCases),
+                                                          NumOfObservations = n())
+```
+The true mean of the population is 1099 per year for the post-vax era  
+The true mean of the population is 4494 per year for the post-vax era  
+
+Assume that we did not know these true means, If we were to use the results from the simulated sampling above and conducted a 95% confidence interval (2 tails):  
+#####Simple Random Pre-vax Sample
+```{r }
+x <- mean(xbar_preVax)
+sig <- sd(xbar_preVax)
+n <- 10000
+
+SE <- qnorm(0.975)*sig/sqrt(n)
+CI <- c(x-SE, x+SE)
+CI
+```
+Based on 95% CI , the true mean of 4495 is much higher than the upper CI of 3572 and would not fall in this interval generated by simple random sampling.
+
+#####Simple Random Post-vax Sample
+```{r }
+x2 <- mean(xbar_postVax)
+sig2 <- sd(xbar_postVax)
+n <- 10000
+
+SE2 <- qnorm(0.975)*sig/sqrt(n)
+CI2 <- c(x2-SE2, x2+SE2)
+CI2
+```
+Based on 95% CI, the true mean of 1099 is lower than the lower CI of 1748 and would not fall in this interval generated by simple random sampling.
+
+#####Strata by Decade Random Pre-vax Sample
+```{r }
+x3 <- mean(xbarSt_preVax)
+sig3 <- sd(xbarSt_preVax)
+n <- 10000
+
+SE3 <- qnorm(0.975)*sig/sqrt(n)
+CI3 <- c(x3-SE3, x3+SE3)
+CI3
+```
+Based on 95% CI, the true mean of 4495 is higher than the upper CI of 4213 generated by strata sampling, but is closer to getting the population mean than the simple random sample
+
+#####Strata by Decade Random Post-vax Sample
+```{r }
+x4 <- mean(xbarSt_postVax)
+sig4 <- sd(xbarSt_postVax)
+n <- 10000
+
+SE4 <- qnorm(0.975)*sig/sqrt(n)
+CI4 <- c(x4-SE4, x4+SE4)
+CI4
+```
+Based on 95% CI , the true mean of 1099 is higher than the upper CI of 1087 but is much closer to getting the true population mean than the simple random sample.  
+
+The data of measles data is very skewed by year, thus neither the simple random nor the strata sampling work to infer the true population mean. However by sampling by strata, we were able to get much closer to the population mean than by simple sampling alone.  
+More sampling method may need to be selected to get closer to the true population mean. This data is complex, other variables such as States, Place of Infection were not considered in this analysis.   
+Furthermore, this population is very large and we may need to increase the sampling data size to 1000 from 100 to get a better inference. We can also increase the number of of sample size used for the CLT from 50 samples to 100 or 200 samples. 
