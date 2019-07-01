@@ -1,0 +1,254 @@
+---
+title: "Practice Finals_2018_Vu"
+author: "Nguyen Vu"
+date: "6/17/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load Packages
+```{r cars}
+library(dplyr)
+library(prob)
+library(sampling)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+##Q1. (30 points)
+a)
+Given a vector of numeric values, write a single simplest R expression that returns TRUE if all
+the odd index elements of the vector are twice their succeeding value, otherwise your
+expression returns FALSE. You can assume that the given vector has an even number of
+values and is assigned to a variable named data.
+TRUE scenario:
+c(6, 3, 10, 5, 22, 11, 26, 13)
+FALSE scenario:
+c(7, 3, 6, 5, 22, 11, 26, 13)
+
+```{r}
+test_true <- c(6, 3, 10, 5, 22, 11, 26, 13)
+
+test_false <- c(7, 3, 6, 5, 22, 11, 26, 13)
+
+all(test_true[seq(1, length(test_true), 2)]/test_true[seq(1, length(test_true), 2)+1] == 2)
+
+all(test_false[seq(1, length(test_false), 2)]/test_false[seq(1, length(test_false), 2)+1] == 2)
+
+```
+b)
+Using a for loop, write the R function, evensum(data), that returns the
+sum of all the even values in the given numeric vector.
+Now, without using any loop, write the R function, evensum2(data), that returns the
+sum of all the even values in the given numeric vector.
+Test both functions with sample data
+c(0,2,3,4,7,8,6,9)
+
+```{r}
+data <- seq(1,99)
+
+evensum <- function(vector){
+  dftsum = 0
+  for (i in vector){
+    if(i%%2 == 0 ){
+      dftsum = dftsum + i
+    }
+  }
+  return(dftsum)
+}
+
+evensum(data)
+
+evensum2 <- function(vector){
+  vdf<-data.frame(
+    vec = c(vector),
+    checkEven = c(vector%%2)
+  )
+  totals = sum(subset(vdf, vdf$checkEven !=1)$vec)
+  return(totals)
+}
+
+evensum2(data)
+```
+c)
+Given a vector, show the R code for finding the element in the vector has the longest run (same
+value consecutively)?
+Sample Input:
+c(10,20,20,40,40,40,40,40,50,50,10,40)
+Output:
+40
+
+```{r}
+
+x <- c(10,20,20,40,40,40,40,40,50,50,10,40)
+
+x[max(rle(c(x))$lengths)]
+
+```
+
+##Q2. (10 Points)
+Consider a class of students with 6 boys and 4 girls. Setup the experiment for selecting 5
+unique students for representing the class as one group at the science fair. Add the probability
+space for this experiment. Add the random variable for the number of boys. Show the marginal
+distribution for this random variable. Add the random variable for the number of girls. Show the
+marginal distribution for this random variable. Provide the R code for all the above.
+
+```{r}
+classroom <- urnsamples(c(rep("boy", 6), rep("girl", 4)), size = 5, replace = FALSE)
+
+S<-probspace(classroom)
+
+Prob(S, isrep(S, "boy", 2))
+
+S <- addrv(S, N_boy = rowSums(S == "boy"))
+
+marginal(S, vars = "N_boy")
+
+```
+
+Q3. (15 Points)
+Consider the Titanic dataset from R.
+Show how you would compute the following using simplest R code. Provide the R code and the
+results for all the following.
+a) How many males and females are there in the data set?
+b) By gender, how many survived and did not survive?
+c) By traveling class, how many survived and did not survive?
+d) By traveling class and age, how many survived and did not survive?
+
+```{r}
+data("Titanic")
+Titanic
+
+#a
+apply(Titanic, c(2), sum)
+#b
+apply(Titanic, c(2, 4), sum)
+#c
+apply(Titanic, c(1, 4), sum)
+#d
+apply(Titanic, c(1, 3, 4), sum)
+
+```
+
+Q4. (15 points)
+A random variable has normal distribution mean 100 and standard deviation 5. Show
+how you would do the following with R code. Write the solutions and interpretation in the
+box below.
+a) Determine and interpret the quartiles of this variable.
+b) Find the value that 65% of all possible values of this variable exceed.
+c) Find the two values that divide the area under the corresponding normal curve into a
+middle area of 0.95 and two outside areas of 0.025. Interpret your answer
+
+```{r}
+
+ranVar <- rnorm(1, mean = 100, sd = 5)
+
+pmf <- dnorm(c(1:200), mean = 100, sd = 5)
+quantile(pmf)
+
+plot(pmf, type = "l")
+#b
+qnorm(0.65, mean = 100, sd = 5)
+
+#c
+midArea = 0.95
+tailArea = .025
+
+qnorm(tailArea, mean = 100, sd = 5)
+qnorm(midArea+tailArea, mean = 100, sd = 5)
+# this is bound of the 2 sided 95% confidence interval around the mean = 100
+
+```
+##Q5. (15 points)
+Consider the votes.repub dataset from “cluster” library, initialized with the following
+code. Show how you would do the following with R code.
+library(cluster)
+library(sampling)
+data(votes.repub)
+data <- votes.repub
+The rownames of the data frame are the names of the states.
+a) Add the column named Letter to the data frame initialized with the first letter of the
+state. Use substring(rownames(data), 0, 1) for this purpose.
+b) Show the contingency table for this Letter.
+c) Using the stratified sampling with the Letter as the stratum, select a sample that
+selects one state from each stratum.
+d) Compare the means of the data for the year 1976 with the mean of the selected
+sample
+```{r}
+#Load data n packages
+library(cluster)
+library(sampling)
+data(votes.repub)
+data <- votes.repub
+
+#b
+data$Letter <- substring(rownames(data), 0, 1)
+#contingency table
+table(data$Letter)
+
+#c
+#strata size length
+sts_len <- length(table(data$Letter))
+#stra size to sample ONE state from each letter
+sts <- rep(1, sts_len)
+#select strata
+strtSamp <- strata(data, stratanames = c("Letter"), size = sts, method = "srswor")
+
+st_Samples <- getdata(data, strtSamp)
+
+#d
+#exclude NA cells... Approach 1 replace NA with O to keep data frame shape...?
+pop1976 <- mean(data$X1976[!is.na(data$X1976)])
+st1976 <- mean(st_Samples$X1976[!is.na(st_Samples$X1976)])
+cat("\n","The mean for the year 1976 in the sample population is ", pop1976, "\n", "The mean for the year 1976 in the selected strata sample is ", st1976)
+
+```
+
+##Q6) (15 points)
+Use the stringr library for the following. Given an input string, write the simplest and
+elegant R code without using explicit loops for the following.
+a) a vector of all prefixes of the input string. (e.g., for input string “abc”, the prefixes are
+“”, “a”, “ab”, “abc”)
+b) a vector of all suffixes of the input string. (e.g., for input string “abc”, the suffixes are
+“abc”, “bc”, “c”, “”)
+c) Use the fruit data from this library. Which starting letter has the highest number of
+occurrences in this data? Which ending letter has the highest number of occurrences in
+this data? If there is a tie, use the first result. Provide R code and results.
+d) Using the results from c), show the fruits that have that starting letter and that ending letter.
+Provide R code and results.
+
+```{r}
+library(stringr)
+x_str <- "ThisIsAtestString"
+
+#a
+str_sub(x_str, start = c(0) ,end = c(0:str_length(x_str)))
+#b
+str_sub(x_str, start = c(1:str_length(x_str)), end = c(-1))
+
+#C
+data("fruit")
+# Which starting letter has the highest number of
+# occurrences in this data? 
+start_letters_Freq <- str_count(str_c(substr(fruit, 1, 1), collapse = ''), letters)
+max_st_letter <- letters[which(start_letters_Freq == max(start_letters_Freq))]
+#Which ending letter has the highest number of occurrences in
+# this data? 
+end_letters_Freq <- str_count(str_c(substr(fruit, str_length(fruit), str_length(fruit)), collapse = ''), letters)
+max_end_letter <- letters[which(end_letters_Freq == max(end_letters_Freq))]
+
+#d
+#show fruits with starts with "p" and end with "e" and "t"
+
+pat <-"^[p]\\w*[e,t]$"
+fruit[str_detect(fruit, pattern = pat)]
+```

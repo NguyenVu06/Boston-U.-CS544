@@ -1,0 +1,114 @@
+---
+title: "CS544_HW6_Vu"
+author: "Nguyen Vu"
+date: "6/20/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part1) Strings (60 points)
+Use the stringr functions for the following:
+Initialize the vector of words from Lincoln’s Gettysburg address with the
+following code:
+file <- "http://kalathur.com/cs544/data/lincoln.txt"
+words <- scan(file, what=character())
+a) Detect and show all the words that have a punctuation symbol.
+b) Replace all the punctuations in the corresponding words with an empty
+string. Make this the new words data.
+c) Show the frequencies of the word lengths in the above data. Plot the
+distribution of these frequencies.
+d) What are the words with the longest length?
+e) Show all the words that start with the letter p.
+f) Show all the words that end with the letter r.
+g) Show all the words that start with the letter p and end with the letter r.
+
+```{r}
+library(stringr)
+file <- "http://kalathur.com/cs544/data/lincoln.txt"
+words <- scan(file, what=character())
+# a. detect words that contains punct
+words[str_detect(words, "[:punct:]")]
+
+# b. Replace punct with empty
+words_data <- str_replace(words,"[:punct:]", "" )
+
+# c. get freq of word length + Its distribution
+wdata_len <- str_length(words_data)
+boxplot(wdata_len, xlab ="word length", ylab = "", horizontal = TRUE )
+
+# d. find the longest words
+words_data[which(wdata_len == max(wdata_len))]
+
+# e. words start with p
+words_data[str_detect(words_data, "^p")]
+
+# f. words ends with r
+words_data[str_detect(words_data, "r$")]
+
+# g. combine e and f
+words_data[str_detect(words_data, "^p+.+r$")]
+
+```
+
+##Part2) Data Wrangling (40 points)
+Use the tidyverse library for the following:
+Download the following csv file,
+http://people.bu.edu/kalathur/usa_daily_avg_temps.csv
+locally first and use read.csv to load the data into a data frame.
+a) Convert the data frame into a tibble and assign it to the variable
+usaDailyTemps.
+b) What are the maximum temperatures recorded for each year? Show the
+values and also the appropriate plot for the results.
+c) What are the maximum temperatures recorded for each state? Show the
+values and also the appropriate plot for the results.
+d) Filter the Boston data and assign it to the variable bostonDailyTemps.
+e) What are the average monthly temperatures for Boston? Show the
+values and also the appropriate plot for the results.
+
+```{r}
+library(dplyr)
+
+temp_data <- read.csv("http://people.bu.edu/kalathur/usa_daily_avg_temps.csv", header = TRUE)
+# a.
+usaDailyTemps <- as_tibble(temp_data)
+
+# b.
+B <- usaDailyTemps %>% group_by(year) %>% summarise(max_temp_by_Year = max(avgtemp))
+B
+plot(x = B$year, y = B$max_temp_by_Year, type = "l",xlab = "Year", ylab = "Max Avg. Temp recorded")
+
+
+# c.
+C <- usaDailyTemps %>% group_by(state) %>% summarise(maxTemp = max(avgtemp))
+C
+
+state_names <- C$state
+state_temp <- C$maxTemp
+
+
+barplot(state_temp,space = 1,
+	main = "Max Avg Temp by States", 
+	ylab = "temperature(F)",xaxt="n"
+	)
+labs <- C$state
+text(seq(1.5,99.5,by=2), par("usr")[3]-0.25, 
+     srt = 60, adj= 1, xpd = TRUE,
+     labels = labs, cex=0.65)
+##===========================
+
+
+#6d
+bostonDailyTemps <- usaDailyTemps %>% filter(city == "Boston")
+
+#6e
+bstByMonth <- bostonDailyTemps %>% group_by(month) %>% summarise(avgMonthlyTemp = mean(avgtemp))
+#average boston temperature by month
+bstByMonth
+
+plot(x= bstByMonth$month, y = bstByMonth$avgMonthlyTemp, type = "b")
+
+```
+

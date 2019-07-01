@@ -1,0 +1,272 @@
+---
+title: "CS544_HW5_Vu"
+author: "Nguyen Vu"
+date: "6/16/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r load packages needed}
+library(sampling)
+library(prob)
+```
+
+
+
+##Part1) Central Limit Theorem (20 points)
+The input data consists of the sequence from 1 to 20 (1:20). Show the following three
+plots in a single row.
+
+```{r 1}
+#load data
+dataIn <- seq(1:20)
+```
+a) Show the histogram of the densities of this distribution.
+b) Using all samples of this data of size 2, show the histogram of the densities of the
+sample means.
+c) Using all samples of this data of size 5, show the histogram of the densities of the
+sample means.
+
+```{r}
+# Use sampling to get the probability space of this vector
+
+par(mfrow = c(1, 3))
+
+#set sample size to draw with replacement as 1, 2 and 5. The mean and sd is calculated.
+set.seed(1220)
+for(s_size in c(1, 2, 5)){
+  sample_x <- urnsamples(dataIn, s_size)
+  x_bar = apply(sample_x, MARGIN = 1, FUN = mean)
+  hist(x_bar, prob = TRUE, main = paste("Sample Means of n = ", s_size), xlab = "sample mean")
+  
+  cat("Sample Size = ", s_size, "\n",  "# Observations = ", nrow(sample_x), "\n",  " Mean = ", mean(x_bar), "\n"," SD = ", sd(x_bar), "\n", "\n")
+}
+
+```
+d) Compare of means and standard deviations of the above three distributions.
+  The mean for all distributions are the same = 10.5. For the sample sampling of 1 in part a, the probability density is uniform as there is an equal probability of selecting each number in the vector. 
+  As the mean is calculated between 2 samples and 5 samples in part b and c, the number of observations increase with the possible combinations of selecting 5 samples for the mean (20 to 190 to 15504 observations).
+  As more mean is added to the probability density, the standard deviation is decreased from 5.9 to 3.98 to 2.29 in part a, b and c respectively. The prob density is approaching normal. 
+
+##Part2) Central Limit Theorem (20 points)
+The data in the file queries.csv contains the number of queries Google has had each day for a one
+year period (365 days). The data file is also available at
+http://kalathur.com/cs544/data/queries.csv. Use this link to read the data using read.csv function
+when submitting the homework.
+
+```{r}
+#Load data and convert to dataFrame
+p2_data <- read.csv("http://kalathur.com/cs544/data/queries.csv", stringsAsFactors = FALSE)
+p2_data <- as.data.frame(p2_data)
+
+#get name of column
+names(p2_data)
+```
+a) Show the histogram of the distribution of the number of queries. Compute the mean and
+standard deviation of the number of queries Google has had per day.
+```{r}
+#compute the means and Standard Devs of the # of inquiry:
+
+mu_queries = mean(p2_data$queries)
+sd_queries = sd(p2_data$queries)
+
+hist(p2_data$queries, xlim = c(2e8, 3e8), probability = TRUE, main = "distribution of inquiry", 
+     xlab = "# of inquiry" )
+cat("mean of the number of queries at Google =" , mu_queries,"\n",
+"standard deviation of the number of queries at Google =" , sd_queries,"\n")
+
+```
+b) Draw 1000 samples of this data of size 5, show the histogram of the densities of the sample
+means. Compute the mean of the sample means and the standard deviation of the sample means.
+c) Draw 1000 samples of this data of size 20, show the histogram of the densities of the sample
+means. Compute the mean of the sample means and the standard deviation of the sample means.
+```{r}
+set.seed(1220)
+
+x_bar <- numeric(1000)
+par(mfrow = c(1, 2))
+for(s_size in c(5, 20)){
+  for(i in 1:length(x_bar)){
+    x_bar[i] = mean(sample(p2_data$queries, size = s_size, replace = TRUE))
+  }
+  hist(x_bar, prob = TRUE, main = paste("Sample Means of n = ", s_size), xlab = "# of inquiry mean", ylim = c(0, 7e-8), breaks = 50)
+  
+  cat( ifelse(s_size !=20, "2b", "2c"), "Sample Size = ", s_size,  " Mean = ", mean(x_bar), " SD = ", sd(x_bar), "\n")
+}
+```
+
+
+d) Compare of means and standard deviations of the above three distributions.
+
+The shape in part a is of the original sample data population. Of the 365 observations, the sample mean is calucalted to be 248514980 searches with the sd = 29202674. This data has a the probability density shape of uniform distribution.
+Keeping the sampling frequency constant at 1000 observations in part b and c, and changing the sampling size to 5 and 20 respectively, the distribution takes a normal curve shapes. The distribution resulted from part c where the sampling size is larger (20>5), the distribution moves closer to resembling a normal curve, the sd is also smaller (reduced from 12519732 in part b to 6644319 in part c)
+
+
+##Part3) Central Limit Theorem – Negative Binomial distribution (20points)
+Suppose the input data follows the negative binomial distribution with the
+parameters size = 5 and prob = 0.5.
+a) Generate 1000 random numbers from this distribution. Show the barplot
+with the proportions of the distinct values of this distribution.
+
+```{r}
+#n = 1000, x = 5, prob = 0.5
+set.seed(1220)
+p3_data <- rnbinom(1000, size = 5, prob = 0.5)
+
+table(p3_data)
+
+hist(p3_data, prob=TRUE, main = "n=1000, size = 4")
+
+```
+b) With samples sizes of 10, 20, 30, and 40, generate the data for 5000
+samples using the same distribution. Show the histograms of the densities
+of the sample means. Use a 2 x 2 layout.
+```{r}
+sSizes <- c(10, 20, 30, 40)
+par(mfrow = c(2, 2))
+for(s in sSizes){
+  p3_dist <- rnbinom(5000, size = s, prob = 0.5)
+  hist(p3_dist, prob = TRUE, main = paste("sample size =", s), xlab = "")
+  cat("Sample Size = ", s,  " Mean = ", mean(p3_dist),
+        " SD = ", sd(p3_dist), " %CV = ",100*sd(p3_dist)/mean(p3_dist), "\n")
+}
+
+```
+c) Compare of means and standard deviations of the data from a) with the
+four sequences generated in b).
+```{r}
+cat("Sample Size in part a= ",1000,  " Mean = ", mean(p3_data),
+        " SD = ", sd(p3_data)," %CV = ", 100*sd(p3_data)/mean(p3_data), "\n")
+```
+The sample mean is close to that of the Sample size (5, 10, 20, 30 and 40).
+The standard deviation decrease as the sample size increase asa a proportion of the mean. We calculate the %CV to decrease from ~64% to ~22% as sample size increase from 5 to 10. 
+In part a, the histogram is also very left-skew and the mean would not be a good description of this data.
+In part b, as the sample size increase the distribution takes a more normal shape. 
+
+##Part4) Sampling (40 points)
+Use the MU284 dataset from the sampling package. Use a sample size of
+20 for each of the following.
+```{r}
+data("MU284")
+names(MU284)
+N <- nrow(MU284)
+n <- 20
+
+
+popRegTable <- table(MU284$REG)
+```
+a) Show the sample drawn using simple random sampling without
+replacement. Show the frequencies for each region (REG). Show the
+percentages of these with respect to the entire dataset.
+```{r}
+#n = 20
+set.seed(1220)
+#random draw without replacement
+s <- srswor(n, N)
+
+#get rows number from random sampling
+rows <- (1:nrow(MU284))[s!=0]
+rows <- rep(rows, s[s!=0])
+
+#subset the rows selected
+set_4a <- MU284[rows,] 
+
+s4a_table <- tabulate(set_4a$REG)
+#  add misssing component and get % of each REG type
+(s4a_table / popRegTable) *100
+
+```
+
+b) Show the sample drawn using systematic sampling. Show the
+frequencies for each region (REG). Show the percentages of these with
+respect to the entire dataset.
+```{r}
+set.seed(1220)
+pick <- inclusionprobabilities(MU284$REG, n)
+
+s4b <- UPsystematic(pick)
+
+set4b <- MU284[s4b!=0,]
+s4b_table <- table(set4b$REG)
+
+
+#Percentage of each REG category with respect to the population
+(s4b_table / popRegTable) *100
+
+```
+
+c) Calculate the inclusion probabilities using the S82 variable. Using these
+values, show the sample drawn using systematic sampling. Show the
+frequencies for each region (REG). Show the percentages of these with
+respect to the entire dataset.
+
+```{r}
+set.seed(1220)
+pick <- inclusionprobabilities(MU284$S82, n)
+
+s4c <- UPsystematic(pick)
+
+set4c <- MU284[s4c!=0,]
+s4c_table <- tabulate(set4c$REG)
+
+#Percentage of each REG category with respect to the population
+(s4c_table / popRegTable) *100
+```
+
+d) Order the data using the REG variable. Draw a stratified sample using
+proportional sizes based on the REG variable. Show the frequencies for
+each region (REG). Show the percentages of these with respect to the
+entire dataset.
+```{r}
+set.seed(1220)
+#order data
+orderedData <- MU284[order(MU284$REG),]
+
+freq <- table(orderedData$REG)
+stratsize <- ceiling(n*(freq/sum(freq)))
+
+stra1 <- strata(MU284, stratanames = c("REG"), size = stratsize, method = "srswor", description = FALSE)
+
+stra1_Sample <- getdata(MU284, stra1)
+#frequency of each region:
+table(stra1_Sample$REG)
+
+
+s4d_table <- tabulate(stra1_Sample$REG)
+#Percentage of each REG category with respect to the population:
+(s4d_table / popRegTable) *100
+
+
+
+```
+
+e) Compare the means of RMT85 variable for these four samples with the
+entire data.
+
+```{r}
+rmtmean_a <- mean(set_4a$RMT85)
+rmtmean_b <- mean(set4b$RMT85)
+rmtmean_c <- mean(set4c$RMT85)
+rmtmean_d <- mean(stra1_Sample$RMT85)
+rmt_MU <- mean(MU284$RMT85)
+
+cat("The mean of RMT85 variable for these four samples is as follows: \n", 
+    "simple random sampling-4a: ",rmtmean_a, "\n",
+    "systematic sampling using REG freq-4b:",rmtmean_b,"\n",
+    "systematic sampling using the S82 variable-4c",rmtmean_c,"\n",
+    "stratify sampling by REG-4d:",rmtmean_d,"\n",
+    "Population average =", rmt_MU)
+
+
+```
+
+Looking at the means of RMT85 from the previous four samples, the systematic sampling for each region REG looks to be the closest to the population mean. 
+The systematic sampling using the S82 variable seems to be alot further away from the average.
+This may indicate that alot of the high values for RMT85 is embedded within the highest probability of the S82 variables. 
+The stratify by REG mean and the simple random sampling mean are very close to each other, this may indicate that the population mean may be skewed by having collected a large number of S82 where the values of RMT85 is also higher. 
+Looking at table(MU284$S82), we can see that a large frequency of S82 is collected between 41 and 51. This may also be where RTM85 has a higher value. 

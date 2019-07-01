@@ -1,0 +1,267 @@
+---
+title: "CS544_HW4_Vu"
+author: "Nguyen Vu"
+date: "6/6/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+##Part1) Binomial distribution (20 points)
+Suppose a pitcher in Baseball has 50% chance of getting a strike-out when
+throwing to a batter. Using the binomial distribution,
+a) Compute and plot the probability distribution for striking out the next 6
+batters.
+b) Plot the CDF for the above
+```{r Part 1a, 1b}
+#x = strike, prob = 0.5, 
+a <- dbinom(0:6, size = 6, prob = 0.5)
+plot(0:6, a, type = "h", main = "50% chance strike-out PMF plot", xlab = "# of Strike-out", ylab = "PMF", ylim = c(0, 0.5))
+abline(h=0)
+points(0:6, a, pch = 16)
+
+
+aC <- c(0,pbinom(0:6, size = 6, prob = 0.5))
+aCDF <- stepfun(0:6, aC)
+plot(aCDF, verticals = FALSE, pch = 16, main = "50% chance strike-out CDF plot", xlab = "# of Strike-out", ylab = "CDF", ylim = c(0, 1.1))
+
+```
+
+c) Repeat a) and b) if the pitcher has 70% chance of getting a strike-out.
+d) Repeat a) and b) if the pitcher has 30% chance of getting a strike-out.
+```{r Part 1c, 1d}
+#x = strike, prob = 0.5, 
+c <- dbinom(0:6, size = 6, prob = 0.7)
+plot(0:6, c, type = "h",main = "70% chance strike out PMF plot", xlab = "# of Strike-outs", ylab = "PMF", ylim = c(0, 0.5))
+abline(h=0)
+
+cC <- c(0, pbinom(0:6, size = 6, prob = 0.7))
+cCDF <- stepfun(0:6, cC)
+plot(cCDF, verticals = FALSE,  pch = 16 ,main = "70% chance strike out CDF plot", xlab = "# of Strike-outs", ylab = "CDF", ylim = c(0, 1.1))
+
+
+d <- dbinom(0:6, size = 6, prob = 0.3)
+plot(0:6, d, type = "h", main = "30% chance strike out PMF plot", xlab = "# of Strike-outs", ylab = "PMF", ylim = c(0, 0.5))
+abline(h=0)
+
+dC <- c(0, pbinom(0:6, size = 6, prob = 0.3))
+dCDF <- stepfun(0:6, dC)
+plot(dCDF, verticals = FALSE, pch = 16, main = "30% chance strike out CDF plot", xlab = "# of Strike-outs", ylab = "CDF", ylim = c(0, 1.1))
+
+```
+e) Infer from the shape of the distributions.
+The PMF plots shows the probability density of the binomial function base on the chance of striking out. When the chance of striking-out is 50%, the PDF plot resembles a normal distribution. When the chance of striking-out change to 30%, the PDF is right-skewed, and vice versa, when the chance of striking-out increase to 70%, the PDF becomes left skewed. Intuitively, this make sense, if we define the probability of sucess (p) equals strikingout, when p is lower than 50% such as 30%, the probability of "sucess" should be lower at 1, 2 and 3 than at 4, 5 and 6. The reverse is true for when p is higher than 50% such as 70%. When p equals to 50%, we would expect a normal shape distribution as we expect for equal probability of having strikeout a high number of batter and low number of batter. 
+Comparing the CDF plots, when p = 50%, the lines for the step plots are move symetrical in step size with the largest steps in the middle. At p = 30% there are more probability that there are less than 4 strike out. The steps are bigger towards the lower values of strike out and much more closer together towards the higher number of strike-outs. The reverse of this is true for p = 70% as the step size are larger towards the higher number of strike-outs. 
+
+##Part 2 Binomial distribution (15 points)
+Suppose that 80% of the flights arrive on time. Using the binomial
+distribution,
+a) What is the probability that four flights will arrive on time in the next 10
+flights?
+```{r 2a}
+# p = 0.8, q = 0.6, find P(x=4), n = 10
+dbinom(4 ,size = 10, 0.8)
+
+```
+b) What is the probability that four or fewer flights will arrive on time in the
+next 10 flights?
+```{r 2b}
+# find P(x <=4), n = 10
+pbinom(4, size = 10, prob = 0.8)
+
+
+```
+
+c) Compute the probability distribution for flight arriving in time for the next
+10 flights.
+```{r 2c}
+flightpmf <- dbinom(0:10, size = 10, prob = 0.8)
+flightpmf
+
+```
+
+d) Show the PMF and the CDF for the next 10 flights.
+
+```{r 2d}
+flightpmf <- dbinom(0:10, size = 10, prob = 0.8)
+flightcdf <- stepfun( 0:10, c(0, pbinom(0:10, size = 10, 0.8)))
+
+plot(flightpmf, type = "h", main = "PMF of the next 10 flights", xlab = "Flight", ylab = "PMF", pch = 16)
+abline(h=0)
+
+plot(flightcdf, verticals = FALSE, main = "CDF of the next 10 flights",xlab = "Flight", ylab = "CDF", pch = 16)
+```
+## Part3) Poisson distribution (15 points)
+Suppose that on average 10 cars drive up to the teller window at your bank
+between 3 PM and 4 PM and the random variable has a Poisson
+distribution. During this time period,
+a) What is the probability of serving exactly 3 cars?
+``` {r 3a}
+# lambda = 10, x = 3
+
+dpois(3, lambda = 10)
+
+```
+b) What is the probability of serving at least 3 cars?
+
+```{r 3b}
+ppois(3, lambda = 10)
+```
+c) What is the probability of serving between 2 and 5 cars (inclusive)?
+```{r 3c}
+ppois(5, lambda = 10) - ppois(1, lambda = 10)
+```
+d) Calculate and plot the PMF for the first 20 cars.
+```{r 3d}
+pmf20c <- dpois(0:20, lambda = 10)
+
+plot(pmf20c, type = "h" ,main = "first 20 cars PMF", xlab = "Car#", ylab = "PMF")
+abline(h=0)
+```
+
+##Part4) Uniform distribution (15 points)
+Suppose that your exams are graded using a uniform distribution between
+60 and 100 (both inclusive).
+a) What is the probability of scoring i) 60? ii) 80? iii) 100?
+
+```{r 4a}
+
+#because this is a distribution, these three probs will be the same no matter what the score. 
+dunif(60, min = 60, max = 100)
+dunif(80, min = 60, max = 100)
+dunif(100, min = 60, max = 100)
+```
+
+
+b) What is the mean and standard deviation of this distribution?
+```{r 4b}
+#Mean
+sum(c(60:100) * dunif(60:100, min = 60, max = 101))
+(60+100)/2
+
+#standard Deviation
+sqrt((100-60)^2/12)
+
+```
+c) What is the probability of getting a score of at most 70?
+```{r 4c}
+#P(X <=70)
+punif(71, min = 60, max = 100)
+sum(dunif(60:70, min = 60, max = 100))
+
+
+```
+d) What is the probability of getting a score greater than 80 (use the
+lower.tail option)?
+```{r 4d}
+punif(80, min = 60, max = 100, lower.tail = FALSE)
+
+```
+e) What is the probability of getting a score between 90 and 100 (both
+inclusive)?
+```{r 4e}
+punif(101, min = 60, max = 100) - punif(89, min = 60, max = 100)
+```
+
+##Part5) Normal distribution (20 points)
+Suppose that visitors at a theme park spend an average of $100 on
+souvenirs. Assume that the money spent is normally distributed with a
+standard deviation of $10.
+
+a) Show the PDF plot of this distribution covering the three standard
+deviations on either side of the mean.
+```{r 5a}
+threesigma <- 10*3
+
+x <- seq(0, 200)
+pkspend_pdf <- dnorm(x, mean = 100, sd = 10)
+plot(x, pkspend_pdf, type = 'l', col = 'red', xlim = c(100-threesigma, 100+threesigma), ylim = c(0, 0.05), xaxt = 'n', yaxt = 'n', 
+     main = "guests park spending", xlab = "amount", ylab = "freq")
+axis(side = 1, at = c(seq(0, 200, by = 10)), labels = TRUE)
+axis(side = 2, at = c(seq(0, 0.06, by = 0.01)), labels = TRUE)
+```
+b) What is the probability that a randomly selected visitor will spend more
+than 120?
+```{r 5b}
+#find P(X>120)
+
+1- pnorm(120,mean = 100, sd=10)
+
+```
+
+c) What is the probability that a randomly selected visitor will spend
+between 80 and 90 (inclusive)?
+```{r 5c}
+pnorm(90,mean = 100, sd=10)- pnorm(80,mean = 100, sd=10)
+
+```
+d) What are the probabilities of spending within one standard deviation, two
+standard deviations, and three standard deviations, respectively?
+```{r 5d}
+stdev <- 10
+mu <- 100
+#prob spending within 1 sd
+pnorm(mu+stdev,mean = 100, sd=10)- pnorm(mu-stdev,mean = 100, sd=10)
+#prob spending within 2 sd
+pnorm(mu+2*stdev,mean = 100, sd=10)- pnorm(mu-2*stdev,mean = 100, sd=10)
+#prob spending within 3 sd
+pnorm(mu+3*stdev,mean = 100, sd=10)- pnorm(mu-3*stdev,mean = 100, sd=10)
+```
+e) Between what two values will the middle 90% of the money spent will
+fall?
+```{r 5e}
+#upper limit
+qnorm(0.95, mean = 100, sd = 10)
+#lower limit
+qnorm(0.05, mean = 100, sd = 10)
+```
+f) Show a plot for 10,000 visitors using the above distribution.
+```{r 5f}
+#simulate 10000 guest spending
+f <- rnorm(10000, mean = 100, sd = 10) 
+plot(table(round(f)), type = "h", main = "Spending of 10K park guests",ylab = "Frequency", xlab = "Spending")
+abline(h=0)
+
+```
+
+
+## Part6) Exponential distribution (15 points)
+Suppose your cell phone provider’s customer support receives calls at the
+rate of 18 per hour.
+
+rate = 18/hr
+
+a) What is the probability that the next call will arrive within 2 minutes?
+```{r 6a}
+# 2min = 2/60 hour
+pexp(2/60, rate = 18)
+
+```
+
+b) What is the probability that the next call will arrive within 5 minutes?
+```{r 6b}
+# 5min = 5/60 hour
+pexp(5/60, rate = 18)
+
+```
+c) What is the probability that the next call will arrive between 2 minutes
+and 5 minutes (both inclusive)?
+```{r 6c}
+# 2min = 2/60 hour
+pexp(5/60, rate = 18) - pexp(2/60, rate = 18)
+
+```
+d) Show the CDF of this distribution.
+```{r 6d}
+x <- seq(0, 1, by=1/60)
+cdf <- pexp(x, rate = 18)
+
+plot(x, cdf, type = "l", col= "blue", xlim = c(0, 0.5), main = "Cummilative prob of calls arriving", 
+     xlab = "hours", ylab = "Probability")
+
+```
+
