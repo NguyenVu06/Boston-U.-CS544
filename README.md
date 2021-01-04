@@ -1,1 +1,2 @@
-# Boston-U.-Data Analytics using R classes
+# Boston-U.-Data Analytics with R 
+
